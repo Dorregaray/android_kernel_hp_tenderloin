@@ -1430,12 +1430,12 @@ static void __init msm8x60_init_dsps(void)
 }
 #endif 
 
-#define MSM_PMEM_SF_SIZE 0x4000000 /* 64 Mbytes */
+#define MSM_PMEM_SF_SIZE 0x200000 /* 2 Mbytes */
 #define MSM_HDMI_PRIM_PMEM_SF_SIZE 0x4000000 /* 64 Mbytes */
 
 #define MSM_PMEM_KERNEL_EBI1_SIZE  0x600000
-#define MSM_PMEM_ADSP_SIZE         0x4200000
-#define MSM_PMEM_AUDIO_SIZE        0x4CF000
+#define MSM_PMEM_ADSP_SIZE         0x600000 /* 6 Mbytes */
+#define MSM_PMEM_AUDIO_SIZE        0x28B000
 
 #define MSM_SMI_BASE          0x38000000
 #define MSM_SMI_SIZE          0x4000000
@@ -1448,7 +1448,7 @@ static void __init msm8x60_init_dsps(void)
 #define MSM_PMEM_SMIPOOL_SIZE USER_SMI_SIZE
 
 #define MSM_ION_SF_SIZE		0x4000000 /* 64MB */
-#define MSM_ION_CAMERA_SIZE     MSM_PMEM_ADSP_SIZE
+#define MSM_ION_CAMERA_SIZE	0x4000000 /* 64MB */
 #define MSM_ION_MM_FW_SIZE	0x200000 /* (2MB) */
 #define MSM_ION_MM_SIZE		0x3600000 /* (54MB) Must be a multiple of 64K */
 #define MSM_ION_MFC_SIZE	SZ_8K
@@ -1521,6 +1521,7 @@ static struct platform_device android_pmem_device = {
 	.id = 0,
 	.dev = {.platform_data = &android_pmem_pdata},
 };
+#endif
 
 static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.name = "pmem_adsp",
@@ -1534,7 +1535,6 @@ static struct platform_device android_pmem_adsp_device = {
 	.id = 2,
 	.dev = { .platform_data = &android_pmem_adsp_pdata },
 };
-#endif
 
 static struct android_pmem_platform_data android_pmem_audio_pdata = {
 	.name = "pmem_audio",
@@ -1607,7 +1607,7 @@ static struct platform_device android_pmem_smipool_device = {
 	.id = 7,
 	.dev = { .platform_data = &android_pmem_smipool_pdata },
 };
-#endif 
+#endif
 #endif 
 
 static void __init msm8x60_allocate_memory_regions(void)
@@ -2140,9 +2140,9 @@ static struct platform_device *tenderloin_devices[] __initdata = {
 #ifdef CONFIG_ANDROID_PMEM
 #ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 	&android_pmem_device,
-	&android_pmem_adsp_device,
 	&android_pmem_smipool_device,
 #endif
+	&android_pmem_adsp_device,
 	&android_pmem_audio_device,
 #endif
 #ifdef CONFIG_MSM_ROTATOR
@@ -2258,10 +2258,10 @@ static void __init size_pmem_devices(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
 #ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
-	android_pmem_adsp_pdata.size = pmem_adsp_size;
 	android_pmem_smipool_pdata.size = MSM_PMEM_SMIPOOL_SIZE;
 	android_pmem_pdata.size = pmem_sf_size;
 #endif
+	android_pmem_adsp_pdata.size = pmem_adsp_size;
 	android_pmem_audio_pdata.size = MSM_PMEM_AUDIO_SIZE;
 #endif
 }
