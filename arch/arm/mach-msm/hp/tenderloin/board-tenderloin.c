@@ -2858,14 +2858,6 @@ static struct i2c_registry msm8x60_i2c_devices[] __initdata = {
 		ARRAY_SIZE(audio_boardinfo),
 	},
 #endif
-#ifdef CONFIG_MSM_CAMERA
-    {
-		I2C_SURF | I2C_FFA,
-		MSM_GSBI4_QUP_I2C_BUS_ID,
-		msm_camera_boardinfo,
-		ARRAY_SIZE(msm_camera_boardinfo),
-	},
-#endif
 #if HASTIMPANI
 	{
 		I2C_SURF | I2C_FFA | I2C_FLUID,
@@ -3168,7 +3160,7 @@ static void __init tenderloin_init(void)
 	tenderloin_init_mpu3050();
 
         tenderloin_init_ts();
-#ifdef CONFIG_MSM_CAMERA
+#ifdef CONFIG_MSM_CAMERA_V4L2
         msm8x60_init_cam();
 #endif
 
