@@ -376,6 +376,7 @@ static struct msm_camera_device_platform_data msm_camera_csi_device_data[] = {
 		},
 	},
 };
+
 static struct camera_vreg_t msm_8x60_back_cam_vreg[] = {
 	{"cam_vana", REG_LDO, 2850000, 2850000, -1},
 	{"cam_vio", REG_VS, 0, 0, 0},
@@ -386,7 +387,9 @@ static struct gpio msm8x60_common_cam_gpio[] = {
 	{32, GPIOF_DIR_IN, "CAMIF_MCLK"},
 	{47, GPIOF_DIR_IN, "CAMIF_I2C_DATA"},
 	{48, GPIOF_DIR_IN, "CAMIF_I2C_CLK"},
+#ifndef CONFIG_WEBCAM_MT9M113
 	{105, GPIOF_DIR_IN, "STANDBY"},
+#endif
 };
 
 static struct gpio msm8x60_back_cam_gpio[] = {
@@ -417,9 +420,9 @@ static struct i2c_board_info imx074_actuator_i2c_info = {
 
 static struct msm_actuator_info imx074_actuator_info = {
 	.board_info     = &imx074_actuator_i2c_info,
-	.cam_name   = MSM_ACTUATOR_MAIN_CAM_0,
 	.bus_id         = MSM_GSBI4_QUP_I2C_BUS_ID,
 	.vcm_enable     = 0,
+	.vcm_pwd        = 0,
 };
 
 static struct msm_camera_sensor_flash_data flash_imx074 = {
@@ -440,7 +443,9 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx074_data = {
 	.sensor_name	= "imx074",
 	.pdata	= &msm_camera_csi_device_data[0],
 	.flash_data	= &flash_imx074,
+#ifdef CONFIG_MSM_CAMERA_FLASH
 	.strobe_flash_data = &strobe_flash_xenon,
+#endif
 	.sensor_platform_info = &sensor_board_info_imx074,
 	.csi_if	= 1,
 	.camera_type = BACK_CAMERA_2D,
@@ -504,6 +509,60 @@ static struct msm_camera_sensor_info msm_camera_sensor_ov7692_data = {
 	.camera_type = FRONT_CAMERA_2D,
 };
 
+static struct gpio mt9m113_cam_gpio[] = {
+	{106, GPIOF_DIR_OUT, "TENDERLOIN_WEBCAM_RST"},
+	{107, GPIOF_DIR_OUT, "TENDERLOIN_WEBCAM_PWDN"},
+};
+
+static struct msm_gpio_set_tbl mt9m113_cam_gpio_set_tbl[] = {
+//	{GPIO_WEB_CAMIF_STANDBY1, GPIOF_OUT_INIT_LOW, 10000},
+};
+
+static struct msm_camera_gpio_conf mt9m113_cam_gpio_conf = {
+	.cam_gpio_common_tbl = msm8x60_common_cam_gpio,
+	.cam_gpio_common_tbl_size = ARRAY_SIZE(msm8x60_common_cam_gpio),
+	.cam_gpio_req_tbl = mt9m113_cam_gpio,
+	.cam_gpio_req_tbl_size = ARRAY_SIZE(mt9m113_cam_gpio),
+	.cam_gpio_set_tbl = mt9m113_cam_gpio_set_tbl,
+	.cam_gpio_set_tbl_size = ARRAY_SIZE(mt9m113_cam_gpio_set_tbl),
+};
+
+struct msm_camera_device_platform_data msm_camera_device_data_web_cam_mt9m113 = {
+//	.camera_gpio_on  = config_camera_on_gpios_web_cam_mt9m113,
+//	.camera_gpio_off = config_camera_off_gpios_web_cam_mt9m113,
+	.ioext.csiphy = 0x04900000,
+	.ioext.csisz  = 0x00000400,
+	.ioext.csiirq = CSI_1_IRQ,
+	.ioclk.mclk_clk_rate = 24000000,
+	.ioclk.vfe_clk_rate  = 228570000,
+};
+
+static struct msm_camera_sensor_flash_data msm_flash_none = {
+	.flash_type = MSM_CAMERA_FLASH_NONE,
+	.flash_src  = NULL
+};
+
+static struct msm_camera_sensor_platform_info sensor_board_info_mt9m113 = {
+	.mount_angle	= 90,
+	.cam_vreg = msm_8x60_back_cam_vreg,
+	.num_vreg = ARRAY_SIZE(msm_8x60_back_cam_vreg),
+	.gpio_conf = &mt9m113_cam_gpio_conf,
+};
+
+static struct msm_camera_sensor_info msm_camera_sensor_mt9m113_data = {
+	.sensor_name= "mt9m113",
+	.sensor_reset= 106,
+	.sensor_pwd= 107,
+	.vcm_pwd= 1,
+	.vcm_enable= 0,
+	.pdata= &msm_camera_device_data_web_cam_mt9m113,
+//	.resource= msm_camera_resources,
+//	.num_resources= ARRAY_SIZE(msm_camera_resources),
+	.flash_data= &msm_flash_none,
+	.sensor_platform_info = &sensor_board_info_mt9m113,
+	.csi_if= 1
+};
+
 static struct platform_device msm_camera_server = {
 	.name = "msm_cam_server",
 	.id = 0,
@@ -532,6 +591,10 @@ static struct i2c_board_info msm8x60_camera_i2c_boardinfo[] = {
 	I2C_BOARD_INFO("ov7692", 0x78),
 	.platform_data = &msm_camera_sensor_ov7692_data,
 	},
+	{
+	I2C_BOARD_INFO("mt9m113", 0x78),
+	.platform_data = &msm_camera_sensor_mt9m113_data,
+	}
 };
 
 struct msm_camera_board_info msm8x60_camera_board_info = {
