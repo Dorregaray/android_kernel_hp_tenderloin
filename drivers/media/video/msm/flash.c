@@ -11,8 +11,6 @@
  * GNU General Public License for more details.
  *
  */
-
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/leds-pmic8058.h>
@@ -23,7 +21,6 @@
 #include <mach/pmic.h>
 #include <mach/camera.h>
 #include <mach/gpio.h>
-#include <linux/htc_flashlight.h>
 
 struct i2c_client *sx150x_client;
 struct timer_list timer_flash;
@@ -148,51 +145,6 @@ static int config_flash_gpio_table(enum msm_cam_flash_stat stat,
 	return rc;
 }
 
-int msm_camera_flash(
-	struct msm_camera_sensor_flash_src *flash_src,
-	unsigned led_state)
-{
-	int flash_level = 0;
-	pr_info("[FLT] %s state %d\n", __func__, led_state);
-
-	if (!flash_src->camera_flash)  return 0;
-
-		switch (led_state) {
-		case MSM_CAMERA_LED_HIGH:
-			flash_level = FL_MODE_FLASH;
-			break;
-		case MSM_CAMERA_LED_LOW:
-			flash_level = FL_MODE_PRE_FLASH;
-			break;
-                case MSM_CAMERA_LED_VIDEO:
-			flash_level = FL_MODE_VIDEO_TORCH;
-			break;
-		case MSM_CAMERA_LED_OFF:
-		case MSM_CAMERA_LED_INIT:
-		case MSM_CAMERA_LED_RELEASE:
-			flash_level = FL_MODE_OFF;
-			break;
-		case FL_MODE_TORCH_LEVEL_1:
-		case FL_MODE_TORCH_LEVEL_2:
-		case FL_MODE_FLASH_LEVEL1:
-		case FL_MODE_FLASH_LEVEL2:
-		case FL_MODE_FLASH_LEVEL3:
-		case FL_MODE_FLASH_LEVEL4:
-		case FL_MODE_FLASH_LEVEL5:
-		case FL_MODE_FLASH_LEVEL6:
-		case FL_MODE_FLASH_LEVEL7:
-
-			flash_level = led_state;
-			break;
-		default:
-			pr_err("[FLT] %s: invalid flash level %d.\n", __func__, led_state);
-			return -EINVAL;
-		}
-
-	return flash_src->camera_flash(flash_level);
-}
-
-
 int msm_camera_flash_current_driver(
 	struct msm_camera_sensor_flash_current_driver *current_driver,
 	unsigned led_state)
@@ -206,7 +158,7 @@ int msm_camera_flash_current_driver(
 
 	CDBG("%s: led_state = %d\n", __func__, led_state);
 
-	
+	/* Evenly distribute current across all channels */
 	switch (led_state) {
 	case MSM_CAMERA_LED_OFF:
 		for (idx = 0; idx < num_leds; ++idx) {
@@ -257,69 +209,9 @@ int msm_camera_flash_current_driver(
 		break;
 	}
 	CDBG("msm_camera_flash_led_pmic8058: return %d\n", rc);
-#endif 
+#endif /* CONFIG_LEDS_PMIC8058 */
 	return rc;
 }
-
-int msm_camera_flash_led(
-		struct msm_camera_sensor_flash_external *external,
-		unsigned led_state)
-{
-	int rc = 0;
-
-	CDBG("msm_camera_flash_led: %d\n", led_state);
-	switch (led_state) {
-	case MSM_CAMERA_LED_INIT:
-		rc = gpio_request(external->led_en, "sgm3141");
-		CDBG("MSM_CAMERA_LED_INIT: gpio_req: %d %d\n",
-				external->led_en, rc);
-		if (!rc)
-			gpio_direction_output(external->led_en, 0);
-		else
-			return 0;
-
-		rc = gpio_request(external->led_flash_en, "sgm3141");
-		CDBG("MSM_CAMERA_LED_INIT: gpio_req: %d %d\n",
-				external->led_flash_en, rc);
-		if (!rc)
-			gpio_direction_output(external->led_flash_en, 0);
-
-			break;
-
-	case MSM_CAMERA_LED_RELEASE:
-		CDBG("MSM_CAMERA_LED_RELEASE\n");
-		gpio_set_value_cansleep(external->led_en, 0);
-		gpio_free(external->led_en);
-		gpio_set_value_cansleep(external->led_flash_en, 0);
-		gpio_free(external->led_flash_en);
-		break;
-
-	case MSM_CAMERA_LED_OFF:
-		CDBG("MSM_CAMERA_LED_OFF\n");
-		gpio_set_value_cansleep(external->led_en, 0);
-		gpio_set_value_cansleep(external->led_flash_en, 0);
-		break;
-
-	case MSM_CAMERA_LED_LOW:
-		CDBG("MSM_CAMERA_LED_LOW\n");
-		gpio_set_value_cansleep(external->led_en, 1);
-		gpio_set_value_cansleep(external->led_flash_en, 1);
-		break;
-
-	case MSM_CAMERA_LED_HIGH:
-		CDBG("MSM_CAMERA_LED_HIGH\n");
-		gpio_set_value_cansleep(external->led_en, 1);
-		gpio_set_value_cansleep(external->led_flash_en, 1);
-		break;
-
-	default:
-		rc = -EFAULT;
-		break;
-	}
-
-	return rc;
-}
-
 int msm_camera_flash_external(
 	struct msm_camera_sensor_flash_external *external,
 	unsigned led_state)
@@ -355,13 +247,13 @@ int msm_camera_flash_external(
 #endif
 		rc = gpio_request(external->led_en, "sc628a");
 		if (!rc) {
-			gpio_direction_output(external->led_en, 0);
+			gpio_direction_output(external->led_en, 1);
 		} else {
 			goto err1;
 		}
 		rc = gpio_request(external->led_flash_en, "sc628a");
 		if (!rc) {
-			gpio_direction_output(external->led_flash_en, 0);
+			gpio_direction_output(external->led_flash_en, 1);
 			break;
 		}
 
@@ -536,24 +428,15 @@ int32_t msm_camera_flash_set_led_state(
 		break;
 
 	case MSM_CAMERA_FLASH_SRC_CURRENT_DRIVER:
-		if (fdata->flash_src->camera_flash)
-			rc = msm_camera_flash(fdata->flash_src, led_state);
-		else
-			rc = msm_camera_flash_current_driver(
-				&fdata->flash_src->_fsrc.current_driver_src,
-				led_state);
+		rc = msm_camera_flash_current_driver(
+			&fdata->flash_src->_fsrc.current_driver_src,
+			led_state);
 		break;
 
 	case MSM_CAMERA_FLASH_SRC_EXT:
 		rc = msm_camera_flash_external(
 			&fdata->flash_src->_fsrc.ext_driver_src,
 			led_state);
-		break;
-
-	case MSM_CAMERA_FLASH_SRC_LED1:
-		rc = msm_camera_flash_led(
-				&fdata->flash_src->_fsrc.ext_driver_src,
-				led_state);
 		break;
 
 	default:
@@ -571,7 +454,7 @@ static int msm_strobe_flash_xenon_charge(int32_t flash_charge,
 	if (charge_enable) {
 		timer_flash.expires = jiffies +
 			msecs_to_jiffies(flash_recharge_duration);
-		
+		/* add timer for the recharge */
 		if (!timer_pending(&timer_flash))
 			add_timer(&timer_flash);
 	} else
@@ -598,7 +481,7 @@ static irqreturn_t strobe_flash_charge_ready_irq(int irq_num, void *data)
 	struct msm_camera_sensor_strobe_flash_data *sfdata =
 		(struct msm_camera_sensor_strobe_flash_data *)data;
 
-	
+	/* put the charge signal to low */
 	gpio_set_value_cansleep(sfdata->flash_charge, 0);
 
 	return IRQ_HANDLED;
@@ -626,7 +509,7 @@ static int msm_strobe_flash_xenon_init(
 		}
 
 		spin_lock_init(&sfdata->timer_lock);
-		
+		/* setup timer */
 		init_timer(&timer_flash);
 		timer_flash.function = strobe_flash_xenon_recharge_handler;
 		timer_flash.data = (unsigned long)sfdata;

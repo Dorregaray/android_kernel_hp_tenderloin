@@ -42,16 +42,11 @@ enum msm_camera_i2c_data_type {
 	MSM_CAMERA_I2C_UNSET_BYTE_MASK,
 	MSM_CAMERA_I2C_SET_WORD_MASK,
 	MSM_CAMERA_I2C_UNSET_WORD_MASK,
-	MSM_CAMERA_I2C_SET_BYTE_WRITE_MASK_DATA,
 };
 
 enum msm_camera_i2c_cmd_type {
 	MSM_CAMERA_I2C_CMD_WRITE,
 	MSM_CAMERA_I2C_CMD_POLL,
-	MSM_CAMERA_I2C_CMD_POLL_EQUAL,
-	MSM_CAMERA_I2C_CMD_POLL_NOT_EQUAL,
-	MSM_CAMERA_I2C_CMD_POLL_LESS,
-
 };
 
 struct msm_camera_i2c_reg_conf {
@@ -59,7 +54,6 @@ struct msm_camera_i2c_reg_conf {
 	uint16_t reg_data;
 	enum msm_camera_i2c_data_type dt;
 	enum msm_camera_i2c_cmd_type cmd_type;
-	int16_t mask;
 };
 
 struct msm_camera_i2c_conf_array {
@@ -84,16 +78,14 @@ int32_t msm_camera_i2c_rxdata(struct msm_camera_i2c_client *client,
 
 int32_t msm_camera_i2c_txdata(struct msm_camera_i2c_client *client,
 	unsigned char *txdata, int length);
-int32_t msm_camera_i2c_read_b(struct msm_camera_i2c_client *client,
-	uint16_t addr, uint16_t *data);
+
 int32_t msm_camera_i2c_read(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t *data,
 	enum msm_camera_i2c_data_type data_type);
 
 int32_t msm_camera_i2c_read_seq(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint8_t *data, uint16_t num_byte);
-int32_t msm_camera_i2c_write_b(struct msm_camera_i2c_client *client,
-	uint16_t addr, uint16_t data );
+
 int32_t msm_camera_i2c_write(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t data,
 	enum msm_camera_i2c_data_type data_type);
@@ -112,9 +104,6 @@ int32_t msm_camera_i2c_compare(struct msm_camera_i2c_client *client,
 int32_t msm_camera_i2c_poll(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t data,
 	enum msm_camera_i2c_data_type data_type);
-	
-int32_t msm_camera_i2c_poll2(struct msm_camera_i2c_client *client,
-	struct msm_camera_i2c_reg_conf *reg_conf_tbl);
 
 int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_reg_conf *reg_conf_tbl, uint16_t size,
@@ -128,8 +117,4 @@ int32_t msm_sensor_write_enum_conf_array(struct msm_camera_i2c_client *client,
 
 int32_t msm_sensor_write_all_conf_array(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_conf_array *array, uint16_t size);
-int32_t msm_camera_i2c_read_seq_rumbas(struct msm_camera_i2c_client *client,
-	uint16_t addr, uint8_t *data, uint16_t num_byte);
-int32_t msm_camera_i2c_txdata_rumbas(struct msm_camera_i2c_client *client,
-	unsigned char *txdata, int length);
 #endif

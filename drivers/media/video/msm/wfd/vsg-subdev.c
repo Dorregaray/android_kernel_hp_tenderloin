@@ -13,6 +13,7 @@
 #include <linux/hrtimer.h>
 #include <linux/time.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <media/videobuf2-core.h>
 #include "enc-subdev.h"
 #include "vsg-subdev.h"
@@ -67,6 +68,10 @@ static void vsg_encode_helper_func(struct work_struct *task)
 	struct vsg_encode_work *work =
 		container_of(task, struct vsg_encode_work, work);
 
+	/*
+	 * Note: don't need to lock for context below as we only
+	 * access fields that are "static".
+	 */
 	int rc = vsg_encode_frame(work->context, work->buf);
 	if (rc < 0) {
 		mutex_lock(&work->context->mutex);
@@ -240,7 +245,7 @@ static enum hrtimer_restart vsg_threshold_timeout_func(struct hrtimer *timer)
 		goto threshold_err_bad_param;
 	} else if (!context) {
 		WFD_MSG_ERR("Context not proper in %s", __func__);
-		goto threshold_err_no_context;
+		goto threshold_err_bad_param;
 	}
 
 	INIT_WORK(&task->work, vsg_timer_helper_func);
@@ -251,8 +256,6 @@ threshold_err_bad_param:
 	hrtimer_forward_now(&context->threshold_timer, ns_to_ktime(
 				context->max_frame_interval));
 	return HRTIMER_RESTART;
-threshold_err_no_context:
-	return HRTIMER_NORESTART;
 }
 
 int vsg_init(struct v4l2_subdev *sd, u32 val)
@@ -341,7 +344,7 @@ static int vsg_stop(struct v4l2_subdev *sd)
 
 	mutex_lock(&context->mutex);
 	context->state = VSG_STATE_STOPPED;
-	{ 
+	{ /*delete pending buffers as we're not going to encode them*/
 		struct list_head *pos, *next;
 		list_for_each_safe(pos, next, &context->free_queue.node) {
 			struct vsg_buf_info *temp =
@@ -387,7 +390,7 @@ static long vsg_queue_buffer(struct v4l2_subdev *sd, void *arg)
 	WFD_MSG_DBG("Queue frame with paddr %p\n",
 			(void *)buf_info->mdp_buf_info.paddr);
 
-	{ 
+	{ /*return pending buffers as we're not going to encode them*/
 		struct list_head *pos, *next;
 		list_for_each_safe(pos, next, &context->free_queue.node) {
 			struct vsg_buf_info *temp =
@@ -397,13 +400,13 @@ static long vsg_queue_buffer(struct v4l2_subdev *sd, void *arg)
 					&context->last_buffer->mdp_buf_info,
 					&temp->mdp_buf_info);
 
-			list_del(&temp->node);
-
 			if (!is_last_buffer &&
 				!(temp->flags & VSG_NEVER_RELEASE)) {
 				vsg_release_input_buffer(context, temp);
 				kfree(temp);
 			}
+
+			list_del(&temp->node);
 		}
 	}
 
@@ -420,12 +423,6 @@ static long vsg_queue_buffer(struct v4l2_subdev *sd, void *arg)
 
 			if (timespec_compare(&diff, &temp) >= 0)
 				push = true;
-		}
-	} else if (context->mode == VSG_MODE_CFR) {
-		if (!context->last_buffer) {
-			push = true;
-			hrtimer_forward_now(&context->threshold_timer,
-				ns_to_ktime(context->max_frame_interval));
 		}
 	}
 
@@ -623,7 +620,7 @@ static long vsg_set_mode(struct v4l2_subdev *sd, void *arg)
 	switch (*mode) {
 	case VSG_MODE_CFR:
 		context->max_frame_interval = context->frame_interval;
-		
+		/*fall through*/
 	case VSG_MODE_VFR:
 		context->mode = *mode;
 		break;

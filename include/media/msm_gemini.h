@@ -1,3 +1,17 @@
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+
 #ifndef __LINUX_MSM_GEMINI_H
 #define __LINUX_MSM_GEMINI_H
 
@@ -51,19 +65,10 @@
 #define MSM_GMN_IOCTL_TEST_DUMP_REGION \
 	_IOW(MSM_GMN_IOCTL_MAGIC, 15, unsigned long)
 
-#define MSM_GMN_IOCTL_SET_MODE \
-	_IOW(MSM_GMN_IOCTL_MAGIC, 16, enum msm_gmn_out_mode)
-
 #define MSM_GEMINI_MODE_REALTIME_ENCODE 0
 #define MSM_GEMINI_MODE_OFFLINE_ENCODE 1
 #define MSM_GEMINI_MODE_REALTIME_ROTATION 2
 #define MSM_GEMINI_MODE_OFFLINE_ROTATION 3
-
-enum msm_gmn_out_mode {
-	MSM_GMN_OUTMODE_FRAGMENTED,
-	MSM_GMN_OUTMODE_SINGLE
-};
-
 struct msm_gemini_ctrl_cmd {
 	uint32_t type;
 	uint32_t len;
@@ -73,6 +78,9 @@ struct msm_gemini_ctrl_cmd {
 #define MSM_GEMINI_EVT_RESET 0
 #define MSM_GEMINI_EVT_FRAMEDONE	1
 #define MSM_GEMINI_EVT_ERR 2
+/* extension begin */
+#define MSM_GEMINI_EVT_BUFFER_OVER 255
+/* extension end */
 
 struct msm_gemini_buf {
 	uint32_t type;

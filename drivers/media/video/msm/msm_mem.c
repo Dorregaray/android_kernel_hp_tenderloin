@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -21,12 +20,14 @@
 #include <linux/videodev2.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 
 #include <linux/android_pmem.h>
+#include <mach/msm_subsystem_map.h>
 
 #include "msm.h"
 
@@ -120,6 +121,7 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 	struct msm_pmem_info *info, struct ion_client *client)
 {
 	unsigned long paddr;
+	unsigned int flags;
 #ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 	unsigned long kvstart;
 	struct file *file;
@@ -128,8 +130,6 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 
 	unsigned long len;
 	struct msm_pmem_region *region;
-	unsigned long ionflag;
-	void *vaddr;
 
 	region = kmalloc(sizeof(struct msm_pmem_region), GFP_KERNEL);
 	if (!region)
@@ -138,23 +138,7 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 	region->handle = ion_import_dma_buf(client, info->fd);
 	if (IS_ERR_OR_NULL(region->handle))
 		goto out1;
-	if (ion_map_iommu(client, region->handle, CAMERA_DOMAIN, GEN_POOL,
-				  SZ_4K, 0, &paddr, &len, 0, 0) < 0)
-		goto out2;
-
-	rc = ion_handle_get_flags(client, region->handle, &ionflag);
-	if (rc) {
-		pr_err("%s: could not get flags for the handle\n", __func__);
-		return 0;
-	}
-	D("ionflag=%ld\n", ionflag);
-	vaddr = ion_map_kernel(client, region->handle);
-	if (IS_ERR_OR_NULL(vaddr)) {
-		pr_err("%s: could not get virtual address\n", __func__);
-		return 0;
-	}
-	region->vaddr = (unsigned long) vaddr;
-
+	ion_phys(client, region->handle, &paddr, (size_t *)&len);
 #elif CONFIG_ANDROID_PMEM
 	rc = get_pmem_file(info->fd, &paddr, &kvstart, &len, &file);
 	if (rc < 0) {
@@ -172,13 +156,13 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 		info->len = len;
 	rc = check_pmem_info(info, len);
 	if (rc < 0)
-		goto out3;
+		goto out2;
 	paddr += info->offset;
 	len = info->len;
 
 	if (check_overlap(ptype, paddr, len) < 0) {
 		rc = -EINVAL;
-		goto out3;
+		goto out2;
 	}
 
 	CDBG("%s: type %d, active flag %d, paddr 0x%lx, vaddr 0x%lx\n",
@@ -186,6 +170,16 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 		(unsigned long)info->vaddr);
 
 	INIT_HLIST_NODE(&region->list);
+	flags = MSM_SUBSYSTEM_MAP_IOVA;
+	region->subsys_id = MSM_SUBSYSTEM_CAMERA;
+	region->msm_buffer = msm_subsystem_map_buffer(paddr, len,
+					flags, &(region->subsys_id), 1);
+	if (IS_ERR((void *)region->msm_buffer)) {
+		pr_err("%s: msm_subsystem_map_buffer failed\n", __func__);
+		rc = PTR_ERR((void *)region->msm_buffer);
+		goto out2;
+	}
+	paddr = region->msm_buffer->iova[0];
 	region->paddr = paddr;
 	region->len = len;
 	memcpy(&region->info, info, sizeof(region->info));
@@ -195,12 +189,8 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 	hlist_add_head(&(region->list), ptype);
 
 	return 0;
-out3:
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	ion_unmap_iommu(client, region->handle, CAMERA_DOMAIN, GEN_POOL);
-#endif
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 out2:
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 	ion_free(client, region->handle);
 #elif CONFIG_ANDROID_PMEM
 	put_pmem_file(region->file);
@@ -225,9 +215,6 @@ static int __msm_register_pmem(struct hlist_head *ptype,
 	case MSM_PMEM_IHIST:
 	case MSM_PMEM_SKIN:
 	case MSM_PMEM_AEC_AWB:
-	case MSM_PMEM_BAYER_GRID:
-	case MSM_PMEM_BAYER_FOCUS:
-	case MSM_PMEM_BAYER_HIST:
 		rc = msm_pmem_table_add(ptype, pinfo, client);
 		break;
 
@@ -255,9 +242,6 @@ static int __msm_pmem_table_del(struct hlist_head *ptype,
 	case MSM_PMEM_IHIST:
 	case MSM_PMEM_SKIN:
 	case MSM_PMEM_AEC_AWB:
-	case MSM_PMEM_BAYER_GRID:
-	case MSM_PMEM_BAYER_FOCUS:
-	case MSM_PMEM_BAYER_HIST:
 		hlist_for_each_entry_safe(region, node, n,
 				ptype, list) {
 
@@ -265,9 +249,12 @@ static int __msm_pmem_table_del(struct hlist_head *ptype,
 				pinfo->vaddr == region->info.vaddr &&
 				pinfo->fd == region->info.fd) {
 				hlist_del(node);
+				if (msm_subsystem_unmap_buffer
+					(region->msm_buffer) < 0)
+					pr_err(
+					"%s: unmapped stat memory\n",
+				__func__);
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-				ion_unmap_iommu(client, region->handle,
-					CAMERA_DOMAIN, GEN_POOL);
 				ion_free(client, region->handle);
 #else
 				put_pmem_file(region->file);
@@ -285,6 +272,7 @@ static int __msm_pmem_table_del(struct hlist_head *ptype,
 	return rc;
 }
 
+/* return of 0 means failure */
 uint8_t msm_pmem_region_lookup(struct hlist_head *ptype,
 	int pmem_type, struct msm_pmem_region *reg, uint8_t maxcount)
 {
@@ -368,15 +356,14 @@ uint8_t msm_pmem_region_lookup_2(struct hlist_head *ptype,
 }
 
 unsigned long msm_pmem_stats_vtop_lookup(
-				struct msm_cam_media_controller *mctl,
+				struct msm_sync *sync,
 				unsigned long buffer,
 				int fd)
 {
 	struct msm_pmem_region *region;
 	struct hlist_node *node, *n;
 
-	hlist_for_each_entry_safe(region, node, n,
-	&mctl->stats_info.pmem_stats_list, list) {
+	hlist_for_each_entry_safe(region, node, n, &sync->pmem_stats, list) {
 		if (((unsigned long)(region->info.vaddr) == buffer) &&
 						(region->info.fd == fd) &&
 						region->info.active == 0) {
@@ -388,45 +375,21 @@ unsigned long msm_pmem_stats_vtop_lookup(
 	return 0;
 }
 
-unsigned long msm_pmem_stats_ptov_lookup(
-		struct msm_cam_media_controller *mctl,
-		unsigned long addr, int *fd)
+unsigned long msm_pmem_stats_ptov_lookup(struct msm_sync *sync,
+						unsigned long addr, int *fd)
 {
 	struct msm_pmem_region *region;
 	struct hlist_node *node, *n;
 
-	hlist_for_each_entry_safe(region, node, n,
-	&mctl->stats_info.pmem_stats_list, list) {
+	hlist_for_each_entry_safe(region, node, n, &sync->pmem_stats, list) {
 		if (addr == region->paddr && region->info.active) {
+			/* offset since we could pass vaddr inside a
+			 * registered pmem buffer */
 			*fd = region->info.fd;
 			region->info.active = 0;
 			return (unsigned long)(region->info.vaddr);
 		}
 	}
-
-    if (addr != 0)
-        pr_err("%s: abnormal addr == 0X%x\n", __func__, (uint32_t)addr);
-
-	return 0;
-}
-
-unsigned long msm_pmem_stats_ptov_lookup_2(
-		struct msm_cam_media_controller *mctl,
-		unsigned long addr, int *fd)
-{
-	struct msm_pmem_region *region;
-	struct hlist_node *node, *n;
-
-	hlist_for_each_entry_safe(region, node, n,
-	&mctl->stats_info.pmem_stats_list, list) {
-		if (addr == region->paddr) {
-			*fd = region->info.fd;
-			return (unsigned long)(region->vaddr);
-		}
-	}
-
-    if (addr != 0)
-        pr_err("%s: abnormal addr == 0X%x\n", __func__, (uint32_t)addr);
 
 	return 0;
 }
