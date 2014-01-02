@@ -2905,16 +2905,20 @@ static void __init register_i2c_devices(void)
 	u8 mach_mask = 0;
 	int i;
 
-	
 	mach_mask = I2C_SURF;
 
-	
 	for (i = 0; i < ARRAY_SIZE(msm8x60_i2c_devices); ++i) {
 		if (msm8x60_i2c_devices[i].machs & mach_mask)
 			i2c_register_board_info(msm8x60_i2c_devices[i].bus,
 						msm8x60_i2c_devices[i].info,
 						msm8x60_i2c_devices[i].len);
 	}
+
+#ifdef CONFIG_MSM_CAMERA_V4L2
+	i2c_register_board_info(MSM_GSBI4_QUP_I2C_BUS_ID,
+				msm8x60_camera_board_info.board_info,
+				msm8x60_camera_board_info.num_i2c_board_info);
+#endif
 
 #endif
 }
