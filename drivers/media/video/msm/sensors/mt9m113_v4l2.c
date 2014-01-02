@@ -16,8 +16,6 @@
 
 #include "msm_sensor.h"
 #define SENSOR_NAME "mt9m113"
-#define PLATFORM_DRIVER_NAME "msm_camera_mt9m113"
-#define mt9m113_obj mt9m113_##obj
 
 DEFINE_MUTEX(mt9m113_mut);
 static struct msm_sensor_ctrl_t mt9m113_s_ctrl;
@@ -26,15 +24,14 @@ static struct msm_camera_i2c_reg_conf mt9m113_settings[] = {
 };
 
 static struct msm_camera_i2c_reg_conf mt9m113_init_settings[] = {
-	//[Default]
-	//STATE = Sensor Reset, 1  // hard reset
-	//DELAY=10
-	//STATE = Sensor Reset, 0  // hard reset
-	//DELAY=10	      
+	/* Disable resetting sensors registers for now.
+	 * I'm not sure if we need this, also enabling it will
+	 * require introducing delay before setting next values */
+#if 0
+	/* reset sensor registers */
 	{ 0x001C, 0x0001 }, 	// MCU_BOOT_MODE
-#if 1
-	//Enlarge MCU_MODE/PLL/MCU_DATA delay by 20 ms to optimize "black screen issue"--0126
-	{ 0x001C, 0x0000, 30}, 	// MCU_BOOT_MODEDELAY=30
+	{ 0x001C, 0x0000 }, 	// MCU_BOOT_MODE
+	//TODO: delay
 #endif
 	{ 0x0016, 0x00FF }, 	// CLOCKS_CONTROL
 	{ 0x0018, 0x0028 }, 	// STANDBY_CONTROL
@@ -45,17 +42,14 @@ static struct msm_camera_i2c_reg_conf mt9m113_init_settings[] = {
 	{ 0x0012, 0x00F1 }, 	// PLL_P_DIVIDERS
 	{ 0x0014, 0x2545 }, 	// PLL_CONTROL
 	{ 0x0014, 0x2547 }, 	// PLL_CONTROL
-#if 1
-	{ 0x0014, 0x3447, 20}, 	// PLL_CONTROL//DELAY = 20 // Allow PLL to lock
-#endif
-//	{ 0xffff, 0x0064 }, //delay
-
+	{ 0x0014, 0x3447 }, 	// PLL_CONTROL
+	{ 0x0000, 0x0000 },
+	//TODO: delay
 	{ 0x0014, 0x3047 }, 	// PLL_CONTROL
 	{ 0x0014, 0x3046 }, 	// PLL_CONTROL
 	{ 0x001A, 0x0218 }, 	// RESET_AND_MISC_CONTROL
 	{ 0x0018, 0x002A }, 	// STANDBY_CONTROL
 	{ 0x321C, 0x0003 }, 	// OFIFO_CONTROL_STATUS
-
 	{ 0x098C, 0x2703 }, 	// MCU_ADDRESS [MODE_OUTPUT_WIDTH_A] = 640
 	{ 0x0990, 0x0280 }, 	// MCU_DATA_0
 	{ 0x098C, 0x2705 }, 	// MCU_ADDRESS [MODE_OUTPUT_HEIGHT_A] = 480
@@ -543,74 +537,19 @@ static struct v4l2_subdev_info mt9m113_subdev_info[] = {
 	/* more can be supported, to be added later */
 };
 
-static struct msm_camera_i2c_reg_conf mt9m113_config_change_settings[] = {
-};
+static void mt9m113_start_stream((struct msm_sensor_ctrl_t *s_ctrl) {}
 
 static void mt9m113_stop_stream(struct msm_sensor_ctrl_t *s_ctrl) {}
 
 static struct msm_camera_i2c_conf_array mt9m113_init_conf[] = {
 	{mt9m113_init_settings,
 	ARRAY_SIZE(mt9m113_init_settings), 0, MSM_CAMERA_I2C_WORD_DATA},
-	{mt9m113_config_change_settings,
-	ARRAY_SIZE(mt9m113_config_change_settings),
-	0, MSM_CAMERA_I2C_WORD_DATA},
 };
 
 static struct msm_camera_i2c_conf_array mt9m113_confs[] = {
 	{mt9m113_settings,
 	ARRAY_SIZE(mt9m113_settings), 0, MSM_CAMERA_I2C_WORD_DATA},
 };
-
-#if 0
-static struct msm_camera_i2c_reg_conf mt9m113_saturation[][1] = {
-};
-
-static struct msm_camera_i2c_reg_conf mt9m113_refresh[] = {
-	{ 0x098C, 0xA103, 0},
-	{ 0x0990, 0x0005, 5},
-	{ 0x098C, 0xA103, 0},
-	{ 0x0990, 0x0006, 5}
-};
-
-static struct msm_camera_i2c_conf_array mt9m113_saturation_confs[][2] = {
-	{ mt9m113_refresh,
-		ARRAY_SIZE(mt9m113_refresh), 0, MSM_CAMERA_I2C_WORD_DATA} },
-};
-
-static int mt9m113_saturation_enum_map[] = {
-	MSM_V4L2_SATURATION_L0,
-	MSM_V4L2_SATURATION_L1,
-	MSM_V4L2_SATURATION_L2,
-	MSM_V4L2_SATURATION_L3,
-	MSM_V4L2_SATURATION_L4,
-	MSM_V4L2_SATURATION_L5,
-	MSM_V4L2_SATURATION_L6,
-	MSM_V4L2_SATURATION_L7,
-	MSM_V4L2_SATURATION_L8,
-	MSM_V4L2_SATURATION_L9,
-	MSM_V4L2_SATURATION_L10,
-};
-
-static struct msm_camera_i2c_enum_conf_array mt9m113_saturation_enum_confs = {
-	.conf = &mt9m113_saturation_confs[0][0],
-	.conf_enum = mt9m113_saturation_enum_map,
-	.num_enum = ARRAY_SIZE(mt9m113_saturation_enum_map),
-	.num_index = ARRAY_SIZE(mt9m113_saturation_confs),
-	.num_conf = ARRAY_SIZE(mt9m113_saturation_confs[0]),
-	.data_type = MSM_CAMERA_I2C_WORD_DATA,
-};
-
-struct msm_sensor_v4l2_ctrl_info_t mt9m113_v4l2_ctrl_info[] = {
-	{
-		.ctrl_id = V4L2_CID_SATURATION,
-		.min = MSM_V4L2_SATURATION_L0,
-		.max = MSM_V4L2_SATURATION_L10,
-		.step = 1,
-		.enum_cfg_settings = &mt9m113_saturation_enum_confs,
-		.s_v4l2_ctrl = msm_sensor_s_ctrl_by_enum,
-	},
-};
-#endif
 
 static struct msm_sensor_output_info_t mt9m113_dimensions[] = {
 	{
@@ -652,8 +591,8 @@ static struct msm_camera_csi2_params *mt9m113_csi_params_array[] = {
 static struct msm_sensor_output_reg_addr_t mt9m113_reg_addr = {
 	.x_output = 0x2707,
 	.y_output = 0x2709,
-	.line_length_pclk = 0x2707,
-	.frame_length_lines = 0x2709,
+	.line_length_pclk = 0x2721,
+	.frame_length_lines = 0x271F,
 };
 
 static struct msm_sensor_id_info_t mt9m113_id_info = {
@@ -680,6 +619,7 @@ static struct msm_camera_i2c_client mt9m113_sensor_i2c_client = {
 
 static int __init msm_sensor_init_module(void)
 {
+	printk("mt9m113 sensor init\n");
 	return i2c_add_driver(&mt9m113_i2c_driver);
 }
 
@@ -700,8 +640,8 @@ static struct v4l2_subdev_ops mt9m113_subdev_ops = {
 };
 
 static struct msm_sensor_fn_t mt9m113_func_tbl = {
-	.sensor_start_stream = msm_sensor_start_stream,
-	.sensor_stop_stream = mt9m113_stop_stream,
+	.sensor_start_stream = mt9m113_sensor_start_stream,
+	.sensor_stop_stream = mt9m113_sensor_stop_stream,
 	.sensor_setting = msm_sensor_setting,
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,
@@ -713,8 +653,6 @@ static struct msm_sensor_fn_t mt9m113_func_tbl = {
 
 static struct msm_sensor_reg_t mt9m113_regs = {
 	.default_data_type = MSM_CAMERA_I2C_WORD_DATA,
-	.start_stream_conf = mt9m113_config_change_settings,
-	.start_stream_conf_size = ARRAY_SIZE(mt9m113_config_change_settings),
 	.init_settings = &mt9m113_init_conf[0],
 	.init_size = ARRAY_SIZE(mt9m113_init_conf),
 	.mode_settings = &mt9m113_confs[0],
@@ -724,12 +662,8 @@ static struct msm_sensor_reg_t mt9m113_regs = {
 
 static struct msm_sensor_ctrl_t mt9m113_s_ctrl = {
 	.msm_sensor_reg = &mt9m113_regs,
-#if 0
-	.msm_sensor_v4l2_ctrl_info = mt9m113_v4l2_ctrl_info,
-	.num_v4l2_ctrl = ARRAY_SIZE(mt9m113_v4l2_ctrl_info),
-#endif
 	.sensor_i2c_client = &mt9m113_sensor_i2c_client,
-	.sensor_i2c_addr = 0x90,
+	.sensor_i2c_addr = 0x78,
 	.sensor_output_reg_addr = &mt9m113_reg_addr,
 	.sensor_id_info = &mt9m113_id_info,
 	.cam_mode = MSM_SENSOR_MODE_INVALID,
