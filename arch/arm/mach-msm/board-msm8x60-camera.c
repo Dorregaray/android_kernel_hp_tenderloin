@@ -472,6 +472,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9e013_data = {
 	.camera_type = BACK_CAMERA_2D,
 };
 
+#ifdef CONFIG_OV7692
 static struct gpio ov7692_cam_gpio[] = {
 	{GPIO_WEB_CAMIF_STANDBY1, GPIOF_DIR_OUT, "CAM_EN"},
 };
@@ -508,14 +509,18 @@ static struct msm_camera_sensor_info msm_camera_sensor_ov7692_data = {
 	.csi_if	= 1,
 	.camera_type = FRONT_CAMERA_2D,
 };
+#endif
+
+#ifdef CONFIG_WEBCAM_MT9M113
 
 static struct gpio mt9m113_cam_gpio[] = {
-	{106, GPIOF_DIR_OUT, "TENDERLOIN_WEBCAM_RST"},
-	{107, GPIOF_DIR_OUT, "TENDERLOIN_WEBCAM_PWDN"},
+	{106, GPIOF_DIR_OUT, "CAM_RESET"},
+	{107, GPIOF_DIR_OUT, "CAM_POWER_DOWN"},
 };
 
 static struct msm_gpio_set_tbl mt9m113_cam_gpio_set_tbl[] = {
-//	{GPIO_WEB_CAMIF_STANDBY1, GPIOF_OUT_INIT_LOW, 10000},
+	{106, GPIOF_OUT_INIT_LOW, 1000},
+	{106, GPIOF_OUT_INIT_HIGH, 4000},
 };
 
 static struct msm_camera_gpio_conf mt9m113_cam_gpio_conf = {
@@ -528,13 +533,14 @@ static struct msm_camera_gpio_conf mt9m113_cam_gpio_conf = {
 };
 
 struct msm_camera_device_platform_data msm_camera_device_data_web_cam_mt9m113 = {
-//	.camera_gpio_on  = config_camera_on_gpios_web_cam_mt9m113,
-//	.camera_gpio_off = config_camera_off_gpios_web_cam_mt9m113,
 	.ioext.csiphy = 0x04900000,
 	.ioext.csisz  = 0x00000400,
 	.ioext.csiirq = CSI_1_IRQ,
 	.ioclk.mclk_clk_rate = 24000000,
 	.ioclk.vfe_clk_rate  = 228570000,
+	.csid_core = 1,
+	.is_vpe    = 1,
+	.cam_bus_scale_table = &cam_bus_client_pdata,
 };
 
 static struct msm_camera_sensor_flash_data msm_flash_none = {
@@ -542,26 +548,45 @@ static struct msm_camera_sensor_flash_data msm_flash_none = {
 	.flash_src  = NULL
 };
 
+static struct camera_vreg_t mt9m113_cam_vreg[] = {
+	{"8058_lvs0", REG_VS, 0, 0, 0},
+	{"8058_l11", REG_LDO, 2850000, 2850000, -1},
+};
+
 static struct msm_camera_sensor_platform_info sensor_board_info_mt9m113 = {
 	.mount_angle	= 90,
-	.cam_vreg = msm_8x60_back_cam_vreg,
-	.num_vreg = ARRAY_SIZE(msm_8x60_back_cam_vreg),
+	.cam_vreg = mt9m113_cam_vreg,
+	.num_vreg = ARRAY_SIZE(mt9m113_cam_vreg),
 	.gpio_conf = &mt9m113_cam_gpio_conf,
 };
 
-static struct msm_camera_sensor_info msm_camera_sensor_mt9m113_data = {
-	.sensor_name= "mt9m113",
-	.sensor_reset= 106,
-	.sensor_pwd= 107,
-	.vcm_pwd= 1,
-	.vcm_enable= 0,
-	.pdata= &msm_camera_device_data_web_cam_mt9m113,
-//	.resource= msm_camera_resources,
-//	.num_resources= ARRAY_SIZE(msm_camera_resources),
-	.flash_data= &msm_flash_none,
-	.sensor_platform_info = &sensor_board_info_mt9m113,
-	.csi_if= 1
+static struct resource msm_camera_sensor_mt9m113_resources[] = {
+	{
+		.start	= 0x04500000,
+		.end	= 0x04500000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= VFE_IRQ,
+		.end	= VFE_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
+
+static struct msm_camera_sensor_info msm_camera_sensor_mt9m113_data = {
+	.sensor_name = "mt9m113",
+	.sensor_reset = 106,
+	.sensor_pwd = 107,
+	.vcm_pwd = 1,
+	.vcm_enable = 0,
+	.pdata = &msm_camera_device_data_web_cam_mt9m113,
+	.resource = msm_camera_sensor_mt9m113_resources,
+	.num_resources = ARRAY_SIZE(msm_camera_sensor_mt9m113_resources),
+	.flash_data = &msm_flash_none,
+	.sensor_platform_info = &sensor_board_info_mt9m113,
+	.csi_if = 1
+};
+#endif
 
 static struct platform_device msm_camera_server = {
 	.name = "msm_cam_server",
@@ -587,14 +612,18 @@ static struct i2c_board_info msm8x60_camera_i2c_boardinfo[] = {
 	I2C_BOARD_INFO("mt9e013", 0x6C),
 	.platform_data = &msm_camera_sensor_mt9e013_data,
 	},
+#ifdef CONFIG_OV7692
 	{
 	I2C_BOARD_INFO("ov7692", 0x78),
 	.platform_data = &msm_camera_sensor_ov7692_data,
-	},
+	}
+#endif
+#ifdef CONFIG_WEBCAM_MT9M113
 	{
 	I2C_BOARD_INFO("mt9m113", 0x78),
 	.platform_data = &msm_camera_sensor_mt9m113_data,
-	}
+	},
+#endif
 };
 
 struct msm_camera_board_info msm8x60_camera_board_info = {
