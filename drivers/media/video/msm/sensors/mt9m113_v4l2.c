@@ -556,7 +556,7 @@ static struct v4l2_subdev_info mt9m113_subdev_info[] = {
 	/* more can be supported, to be added later */
 };
 
-static void mt9m113_start_stream((struct msm_sensor_ctrl_t *s_ctrl) {}
+static void mt9m113_start_stream(struct msm_sensor_ctrl_t *s_ctrl) {}
 
 static void mt9m113_stop_stream(struct msm_sensor_ctrl_t *s_ctrl) {}
 
@@ -659,8 +659,8 @@ static struct v4l2_subdev_ops mt9m113_subdev_ops = {
 };
 
 static struct msm_sensor_fn_t mt9m113_func_tbl = {
-	.sensor_start_stream = mt9m113_sensor_start_stream,
-	.sensor_stop_stream = mt9m113_sensor_stop_stream,
+	.sensor_start_stream = mt9m113_start_stream,
+	.sensor_stop_stream = mt9m113_stop_stream,
 	.sensor_setting = msm_sensor_setting,
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,
