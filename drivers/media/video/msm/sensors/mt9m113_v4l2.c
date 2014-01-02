@@ -21,6 +21,25 @@ DEFINE_MUTEX(mt9m113_mut);
 static struct msm_sensor_ctrl_t mt9m113_s_ctrl;
 
 static struct msm_camera_i2c_reg_conf mt9m113_settings[] = {
+	{ 0x098C, 0xA115 }, 	// MCU_ADDRESS [SEQ_CAP_MODE]
+	{ 0x0990, 0x0002 }, 	// MCU_DATA_0
+	{ 0x098C, 0xA116 }, 	// p1:0x16 frame number in capture mode
+	{ 0x0990, 0xffff },
+	{ 0x098C, 0xA103 }, 	// MCU_ADDRESS [SEQ_CMD]
+	{ 0x0990, 0x0002 }, 	// MCU_DATA_0
+
+	//TODO: delay
+
+	{ 0x001E, 0x0402 }, 	// PAD_SLEW 700 707 400 403 701
+	{ 0x098C, 0xA103 }, 	// MCU_ADDRESS [SEQ_CMD]
+	{ 0x0990, 0x0006 }, 	// MCU_DATA_0
+	{ 0x0000, 0x0000 },
+
+	//TODO: delay
+
+	{ 0x098C, 0xA103 }, 	// MCU_ADDRESS [SEQ_CMD]
+	{ 0x0990, 0x0005 }, 	// MCU_DATA_0
+	{ 0x0000, 0x0000 },
 };
 
 static struct msm_camera_i2c_reg_conf mt9m113_init_settings[] = {
