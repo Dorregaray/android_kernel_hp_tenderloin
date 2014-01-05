@@ -2985,8 +2985,9 @@ static const struct file_operations msm_fops_config = {
 	.release = msm_close_config,
 };
 
-static struct camera_flash_info *p_flash_led_info;
-static struct kobject *led_status_obj; 
+#ifdef CONFIG_MACH_HTC
+static struct camera_flash_info *p_flash_led_info = NULL;
+static struct kobject *led_status_obj;
 
 static ssize_t flash_led_info_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -3033,7 +3034,9 @@ static ssize_t flash_led_tbl_get(struct device *dev,
 		length = sprintf(buf, "%d\n", 0);
 	return length;
 }
+#endif
 
+#ifdef CONFIG_MACH_HTC
 static DEVICE_ATTR(flash_led_info, 0444,
 	flash_led_info_get,
 	NULL);
@@ -3138,7 +3141,6 @@ static ssize_t low_cap_limit_dual_get(struct device *dev,
 static DEVICE_ATTR(led_ril_status, 0644,
 	led_ril_status_get,
 	led_ril_status_set);
-
 static DEVICE_ATTR(led_wimax_status, 0644,
 	led_wimax_status_get,
 	led_wimax_status_set);
@@ -3158,7 +3160,9 @@ static DEVICE_ATTR(low_cap_limit, 0444,
 static DEVICE_ATTR(low_cap_limit_dual, 0444,
 	low_cap_limit_dual_get,
 	NULL);
+#endif
 
+#ifdef CONFIG_MACH_HTC
 static int msm_sensor_attr_node(struct msm_camera_sensor_info *sdata)
 {
 	int ret = 0;
@@ -3228,14 +3232,12 @@ static int msm_sensor_attr_node(struct msm_camera_sensor_info *sdata)
 		ret = -EFAULT;
 		goto error;
 	}
-
 	if ((sdata->flash_data->flash_type != MSM_CAMERA_FLASH_NONE) &&
 		sdata->flash_cfg && sdata->flash_cfg->flash_info) {
 		p_flash_led_info = sdata->flash_cfg->flash_info;
 	} else {
 		p_flash_led_info = NULL;
 	}
-
 	led_low_temp_limit = sdata->flash_cfg->low_temp_limit;
 	led_low_cap_limit = sdata->flash_cfg->low_cap_limit;
 	led_low_cap_limit_dual = sdata->flash_cfg->low_cap_limit_dual;
@@ -3246,6 +3248,7 @@ error:
 	kobject_del(led_status_obj);
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_RAWCHIP
 static struct kobject *rawchip_status_obj;
@@ -3578,8 +3581,8 @@ int msm_cam_register_subdev_node(struct v4l2_subdev *sd,
 	if (err < 0)
 		return err;
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	sd->entity.v4l.major = VIDEO_MAJOR;
-	sd->entity.v4l.minor = vdev->minor;
+	sd->entity.info.v4l.major = VIDEO_MAJOR;
+	sd->entity.info.v4l.minor = vdev->minor;
 #endif
 	return 0;
 }
@@ -3896,7 +3899,6 @@ int msm_sensor_register(struct v4l2_subdev *sensor_sd)
 
 	D("%s for %s\n", __func__, sensor_sd->name);
 
-	
 	pcam = kzalloc(sizeof(*pcam), GFP_KERNEL);
 	if (!pcam) {
 		pr_err("%s: could not allocate mem for msm_cam_v4l2_device\n",
@@ -3922,31 +3924,31 @@ int msm_sensor_register(struct v4l2_subdev *sensor_sd)
 	act_sdev = pcam->act_sdev;
 	actctrl = &pcam->actctrl;
 
-	
+#ifdef CONFIG_MACH_HTC
 	if (sdata->actuator_info) {
 		if (sdata->use_rawchip)
 			sdata->actuator_info->use_rawchip_af = 1;
 		else
 			sdata->actuator_info->use_rawchip_af = 0;
 	}
-	
+#endif
 
 	msm_actuator_probe(sdata->actuator_info,
 					   act_sdev, actctrl);
 
 	pcam->sdata = sdata;
 
-	
+#ifdef CONFIG_MACH_HTC
 	if (pcam->sdata && pcam->sdata->flash_cfg )
 		msm_sensor_attr_node(pcam->sdata);
-	
+#endif
 
-	
+	/* init the user count and lock*/
 	pcam->use_count = 0;
 	mutex_init(&pcam->vid_lock);
 	mutex_init(&pcam->mctl_node.dev_lock);
 
-	
+	/* Initialize the formats supported */
 	rc  = msm_mctl_init_user_formats(pcam);
 	if (rc < 0)
 		goto failure;
@@ -3999,7 +4001,7 @@ int msm_sensor_register(struct v4l2_subdev *sensor_sd)
 	D("%s number of sensors connected is %d\n", __func__,
 		g_server_dev.camera_info.num_cameras);
 
-	
+#ifdef CONFIG_MACH_HTC
 	if(actctrl) {
 		
 		actctrl->actrl_vcm_on_mut = &cam_vcm_on_mut;
@@ -4020,14 +4022,12 @@ int msm_sensor_register(struct v4l2_subdev *sensor_sd)
 		}
 	}
 
-	
 	if(sdata->actuator_info) {
 		if(sdata->actuator_info->vcm_wa_vreg_off)
 			g_vcm_wa_ctl.vcm_vreg_off = sdata->actuator_info->vcm_wa_vreg_off;
 	}
-	
+#endif
 
-	
 	rc = msm_cam_register_subdev_node(sensor_sd, SENSOR_DEV, vnode_count);
 	if (rc < 0) {
 		D("%s sensor sub device register failed\n",

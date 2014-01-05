@@ -27,6 +27,11 @@
 #include <linux/time.h>
 #endif
 
+/* Define HTC HAL version 0 for non-HTC devices */
+#ifndef CONFIG_MSM_CAMERA_HTC_HAL_VERSION
+#define CONFIG_MSM_CAMERA_HTC_HAL_VERSION 0
+#endif
+
 #include <linux/ion.h>
 #define MSM_CAM_IOCTL_MAGIC 'm'
 

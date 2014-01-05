@@ -10,6 +10,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/kthread.h>
 #include "msm_sensor.h"
 #include "msm.h"
 #include "msm_ispif.h"
@@ -167,13 +168,16 @@ int32_t msm_sensor_write_init_settings(struct msm_sensor_ctrl_t *s_ctrl)
 	int32_t rc;
 	CDBG("%s: called\n", __func__);
 
+#ifdef CONFIG_MACH_HTC
 	if ((s_ctrl->sensordata->htc_image == HTC_CAMERA_IMAGE_YUSHANII_BOARD) && (s_ctrl->msm_sensor_reg->init_settings_yushanii))
 	{
 		rc = msm_sensor_write_all_conf_array(
 			s_ctrl->sensor_i2c_client,
 			s_ctrl->msm_sensor_reg->init_settings_yushanii,
 			s_ctrl->msm_sensor_reg->init_size_yushanii);
-	} else {
+	} else
+#endif
+	{
 		rc = msm_sensor_write_all_conf_array(
 			s_ctrl->sensor_i2c_client,
 			s_ctrl->msm_sensor_reg->init_settings,
@@ -266,6 +270,7 @@ void msm_sensor_start_stream(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	CDBG("%s: called\n", __func__);
 
+#ifdef CONFIG_MACH_HTC
 	if ((s_ctrl->sensordata->htc_image == HTC_CAMERA_IMAGE_YUSHANII_BOARD) && (s_ctrl->msm_sensor_reg->start_stream_conf_yushanii))
 	{
 		msm_camera_i2c_write_tbl(
@@ -273,7 +278,9 @@ void msm_sensor_start_stream(struct msm_sensor_ctrl_t *s_ctrl)
 		s_ctrl->msm_sensor_reg->start_stream_conf_yushanii,
 		s_ctrl->msm_sensor_reg->start_stream_conf_size_yushanii,
 		s_ctrl->msm_sensor_reg->default_data_type);
-	} else {
+	} else
+#endif
+	{
 		msm_camera_i2c_write_tbl(
 		s_ctrl->sensor_i2c_client,
 		s_ctrl->msm_sensor_reg->start_stream_conf,
@@ -286,6 +293,7 @@ void msm_sensor_stop_stream(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	CDBG("%s: called\n", __func__);
 
+#ifdef CONFIG_MACH_HTC
 	if ((s_ctrl->sensordata->htc_image == HTC_CAMERA_IMAGE_YUSHANII_BOARD) && (s_ctrl->msm_sensor_reg->stop_stream_conf_yushanii))
 	{
 		msm_camera_i2c_write_tbl(
@@ -293,7 +301,9 @@ void msm_sensor_stop_stream(struct msm_sensor_ctrl_t *s_ctrl)
 		s_ctrl->msm_sensor_reg->stop_stream_conf_yushanii,
 		s_ctrl->msm_sensor_reg->stop_stream_conf_size_yushanii,
 		s_ctrl->msm_sensor_reg->default_data_type);
-	} else {
+	} else
+#endif
+	{
 		msm_camera_i2c_write_tbl(
 		s_ctrl->sensor_i2c_client,
 		s_ctrl->msm_sensor_reg->stop_stream_conf,
@@ -1335,9 +1345,9 @@ int32_t msm_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
         if (s_ctrl->adjust_frame_length_line)
             s_ctrl->msm_sensor_reg->output_settings[i].line_length_pclk *= 2;
     }
-	
-	
-	 
+
+
+#ifdef CONFIG_MACH_HTC
 	if ((s_ctrl->sensordata->htc_image == HTC_CAMERA_IMAGE_YUSHANII_BOARD) && (s_ctrl->msm_sensor_reg->output_settings_yushanii)) {
 		if (copy_to_user((void *)sensor_output_info->output_info,
 			s_ctrl->msm_sensor_reg->output_settings_yushanii,
@@ -1351,7 +1361,7 @@ int32_t msm_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
 			s_ctrl->msm_sensor_reg->num_conf))
 			rc = -EFAULT;
 	}
-	
+#endif
     for (i=0;i<s_ctrl->msm_sensor_reg->num_conf;++i) {
         if (s_ctrl->adjust_y_output_size)
             s_ctrl->msm_sensor_reg->output_settings[i].y_output += 1;
@@ -1732,12 +1742,14 @@ int32_t msm_sensor_set_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		return (-1);
 	}
 
+#ifdef CONFIG_MACH_HTC
 	msm_camio_clk_rate_set(MSM_SENSOR_MCLK_24HZ);
 
 	if (data->sensor_platform_info->sensor_reset_enable)
 		gpio = data->sensor_platform_info->sensor_reset;
 	else
 		gpio = data->sensor_platform_info->sensor_pwd;
+#endif
 
 	rc = gpio_request(gpio, "SENSOR_NAME");
 	if (!rc) {
@@ -1766,10 +1778,12 @@ int32_t msm_sensor_set_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		return (-1);
 	}
 
+#ifdef CONFIG_MACH_HTC
 	if (data->sensor_platform_info->sensor_reset_enable)
 		gpio = data->sensor_platform_info->sensor_reset;
 	else
 		gpio = data->sensor_platform_info->sensor_pwd;
+#endif
 
 	gpio_set_value_cansleep(gpio, 0);
 	usleep_range(1000, 2000);
@@ -1880,13 +1894,14 @@ int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 		return -EFAULT;
 	}
 
-	msm_camio_probe_on_bootup(s_ctrl);	
+#ifdef CONFIG_MACH_HTC
+	msm_camio_probe_on_bootup(s_ctrl);
 
 	if (s_ctrl->sensordata->use_rawchip) {
 #ifdef CONFIG_RAWCHIP
 		rc = rawchip_probe_init();
 		if (rc < 0) {
-			msm_camio_probe_on_bootup(s_ctrl);	
+			msm_camio_probe_on_bootup(s_ctrl);
 
 			pr_err("%s: rawchip probe init failed\n", __func__);
 			return rc;
@@ -1913,12 +1928,14 @@ int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 		}
 #endif
 	}
+#endif
 
 	if (s_ctrl->func_tbl && s_ctrl->func_tbl->sensor_power_up)
 		rc = s_ctrl->func_tbl->sensor_power_up(s_ctrl);
-
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("%s %s power up failed\n", __func__, client->name);
 		goto probe_fail;
+	}
 
 	rc = msm_sensor_match_id(s_ctrl);
 	if (rc < 0)
@@ -1948,8 +1965,8 @@ int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&s_ctrl->sensor_v4l2_subdev, client,
 		s_ctrl->sensor_v4l2_subdev_ops);
 
-    if (s_ctrl->func_tbl->sensor_i2c_read_vcm_driver_ic != NULL)
-      s_ctrl->func_tbl->sensor_i2c_read_vcm_driver_ic(s_ctrl);
+	if (s_ctrl->func_tbl->sensor_i2c_read_vcm_driver_ic != NULL)
+		s_ctrl->func_tbl->sensor_i2c_read_vcm_driver_ic(s_ctrl);
 
 	msm_sensor_register(&s_ctrl->sensor_v4l2_subdev);
 	goto power_down;
@@ -1962,6 +1979,7 @@ power_down:
 	if (s_ctrl->func_tbl && s_ctrl->func_tbl->sensor_power_down)
 		s_ctrl->func_tbl->sensor_power_down(s_ctrl);
 
+#ifdef CONFIG_MACH_HTC
 	if (s_ctrl->sensordata->use_rawchip) {
 #ifdef CONFIG_RAWCHIP
 		rawchip_probe_deinit();
@@ -1974,7 +1992,8 @@ power_down:
 #endif
 	}
 
-	msm_camio_probe_off_bootup(s_ctrl);	
+	msm_camio_probe_off_bootup(s_ctrl);
+#endif
 
 	return rc;
 }

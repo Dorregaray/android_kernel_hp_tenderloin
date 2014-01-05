@@ -26,9 +26,7 @@
 #include <linux/of_platform.h>
 #include <linux/msm_ssbi.h>
 #include <mach/msm_bus.h>
-#ifdef CONFIG_MACH_HTC
 #include <mach/board-ext-htc.h>
-#endif
 
 struct msm_camera_io_ext {
 	uint32_t mdcphy;
@@ -64,12 +62,10 @@ struct msm_camera_device_platform_data {
 	struct msm_camera_io_ext ioext;
 	struct msm_camera_io_clk ioclk;
 	uint8_t csid_core;
-#ifdef CONFIG_MACH_HTC
 	uint8_t is_csiphy;
 	uint8_t is_csic;
 	uint8_t is_csid;
 	uint8_t is_ispif;
-#endif
 	uint8_t is_vpe;
 	struct msm_bus_scale_pdata *cam_bus_scale_table;
 #ifdef CONFIG_MACH_HTC

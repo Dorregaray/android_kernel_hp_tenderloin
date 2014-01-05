@@ -195,17 +195,18 @@ static int msm_get_sensor_info(
 	info.actuator_enabled = sdata->actuator_info ? 1 : 0;
 	info.strobe_flash_enabled = sdata->strobe_flash_data ? 1 : 0;
 
+#ifdef CONFIG_MACH_HTC
 	pr_info("msm_get_sensor_info,sdata->htc_image=%d,sdata->use_rawchip=%d,sdata->hdr_mode=%d,sdata->video_hdr_capability=%d",sdata->htc_image,sdata->use_rawchip,sdata->hdr_mode,sdata->video_hdr_capability);
 	info.htc_image = sdata->htc_image;
 	info.hdr_mode = sdata->hdr_mode;
 	info.video_hdr_capability = sdata->video_hdr_capability;
-	
+
 	if (sdata->use_rawchip == RAWCHIP_ENABLE)
 		info.use_rawchip = RAWCHIP_ENABLE;
 	else
 		info.use_rawchip = RAWCHIP_DISABLE;
-	
-	
+#endif
+
 	if (copy_to_user((void *)arg,
 				&info,
 				sizeof(struct msm_camsensor_info))) {
@@ -538,7 +539,6 @@ static int msm_mctl_register_subdevs(struct msm_cam_media_controller *p_mctl,
 		p_mctl->ispif_sdev = dev_get_drvdata(dev);
 	}
 
-	
 	driver = driver_find(MSM_VFE_DRV_NAME, &platform_bus_type);
 	if (!driver)
 		goto out;
@@ -615,12 +615,10 @@ static int msm_mctl_open(struct msm_cam_media_controller *p_mctl,
 	}
 
 	mutex_lock(&p_mctl->lock);
-	
+
 	if (!p_mctl->opencnt) {
 		uint32_t csid_version;
 		wake_lock(&p_mctl->wake_lock_suspend);
-		
-		
 
 		csid_core = camdev->csid_core;
 		rc = msm_mctl_register_subdevs(p_mctl, csid_core);
@@ -701,7 +699,7 @@ static int msm_mctl_open(struct msm_cam_media_controller *p_mctl,
 			}
 		}
 
-#if 1	
+#ifdef CONFIG_MACH_HTC
 
 		rc = msm_camio_probe_on(s_ctrl);
 		if (rc)
@@ -711,7 +709,6 @@ static int msm_mctl_open(struct msm_cam_media_controller *p_mctl,
 		if(p_mctl->actctrl->actrl_vcm_on_mut)
 			mutex_lock(p_mctl->actctrl->actrl_vcm_on_mut);
 		
-
 		if (p_mctl->sdata->use_rawchip) {
 #ifdef CONFIG_RAWCHIP
 			rc = rawchip_open_init();
@@ -731,9 +728,9 @@ static int msm_mctl_open(struct msm_cam_media_controller *p_mctl,
 		}
 
 
-#endif 
+#endif
 
-		
+
 		rc = v4l2_subdev_call(p_mctl->sensor_sdev, core, s_power, 1);
 
 		if (rc < 0) {
@@ -888,6 +885,7 @@ static int msm_mctl_release(struct msm_cam_media_controller *p_mctl)
 		p_mctl->actctrl->a_power_down(
 			p_mctl->sdata->actuator_info);
 
+#ifdef CONFIG_MACH_HTC
 	if (p_mctl->sdata->use_rawchip) {
 #ifdef CONFIG_RAWCHIP
 		rawchip_release();
@@ -899,11 +897,12 @@ static int msm_mctl_release(struct msm_cam_media_controller *p_mctl)
 		YushanII_release();
 #endif
 	}
-	
+
 	rc = msm_camio_probe_off(s_ctrl);
 	if (rc)
 		pr_info("%s msm_camio_probe_off rc(%d)\n", __func__, rc);
-	
+#endif
+
 
 	v4l2_subdev_call(p_mctl->sensor_sdev, core, s_power, 0);
 

@@ -27,7 +27,9 @@
 #include <mach/msm_subsystem_map.h>
 #include <linux/ion.h>
 
+#ifndef CONFIG_MSM_CAMERA_DEBUG
 #define CONFIG_MSM_CAMERA_DEBUG
+#endif
 #ifdef CONFIG_MSM_CAMERA_DEBUG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #else
@@ -651,6 +653,14 @@ struct msm_cam_clk_info {
 	long clk_rate;
 };
 
+/*struct msm_camera_csi_params {
+	enum msm_camera_csi_data_format data_format;
+	uint8_t lane_cnt;
+	uint8_t lane_assign;
+	uint8_t settle_cnt;
+	uint8_t dpcm_scheme;
+};
+*/
 int msm_camio_enable(struct platform_device *dev);
 int msm_camio_vpe_clk_enable(uint32_t);
 int msm_camio_vpe_clk_disable(void);

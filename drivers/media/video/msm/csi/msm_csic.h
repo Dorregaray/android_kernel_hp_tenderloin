@@ -35,6 +35,9 @@ struct csic_cfg_params {
 	void *parms;
 };
 
+#define CSIC_7X 0x1
+#define CSIC_8X (0x1 << 1)
+
 #define VIDIOC_MSM_CSIC_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct csic_cfg_params)
 
